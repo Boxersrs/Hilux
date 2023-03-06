@@ -554,7 +554,7 @@ static void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
-  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
+  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_FALLING;
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
   sConfigIC.ICFilter = 0;
@@ -759,7 +759,7 @@ void StartTask02(void *argument)
   uint8_t send_count = 0;
   /* Infinite loop */
   for (;;) {
-    tps_rpm.rpm = 100000 / (tps_rpm.count / 4);  // Расчет оборотов
+    tps_rpm.rpm = 500000 / (tps_rpm.count / 4);  // Расчет оборотов
                                                  //	  tps_rpm.rpm = 1500;
     txHeader.IDE = CAN_ID_STD;
     txHeader.RTR = CAN_RTR_DATA;
@@ -832,7 +832,7 @@ uint8_t calc_temp(uint16_t adc) {  // �?нтерполяция темпера�
 
 uint8_t on_off = 0;
 uint16_t adc_value;
-
+double arr = 0;
 /**
  * @brief Function implementing the myTask03 thread.
  * @param argument: Not used
@@ -872,9 +872,13 @@ void StartTask03(void *argument)
 
     osDelay(50);
 
-    TIM1->CCR1 = 100;
-    double arr = tps_rpm.count / 3.0 * 2.0;
+
+    if( tps_rpm.count > 300){
+    	TIM1->CCR1 = 100;
+    	    arr = tps_rpm.count * 1.5;
     TIM1->ARR = arr;
+    }
+
 
   }
   /* USER CODE END StartTask03 */
@@ -957,7 +961,7 @@ void StartTask05(void *argument)
 //    HAL_GPIO_WritePin(temp_GPIO_Port, temp_Pin, SET);
 //    osDelay(1);
 //    HAL_GPIO_WritePin(temp_GPIO_Port, temp_Pin, RESET);
-//    osDelay(20);
+//    osDelay(23);
     osDelay(1000);
   }
   /* USER CODE END StartTask05 */
