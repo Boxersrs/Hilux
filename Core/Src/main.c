@@ -32,8 +32,15 @@ struct tps_rpm {
   uint8_t coef;
 } tps_rpm;
 #include "SMA_filter_lib.h"
-uint16_t SMA_Filter_Buffer_1[SMA_FILTER_ORDER] = {0,};
-uint16_t ADC_SMA_Data[2] = {0,};
+uint16_t SMA_Filter_Buffer_1[SMA_FILTER_ORDER] = {
+    0,
+};
+uint16_t SMA_Filter_Buffer_2[SMA_FILTER_ORDER] = {
+    0,
+};
+uint16_t ADC_SMA_Data[2] = {
+    0,
+};
 uint8_t transmitUART[30];
 /* USER CODE END Includes */
 
@@ -130,7 +137,7 @@ const osThreadAttr_t myTask05_attributes = {
   .cb_size = sizeof(myTask05ControlBlock),
   .stack_mem = &myTask05Buffer[0],
   .stack_size = sizeof(myTask05Buffer),
-  .priority = (osPriority_t) osPriorityNormal,
+  .priority = (osPriority_t) osPriorityAboveNormal,
 };
 /* USER CODE BEGIN PV */
 
@@ -539,7 +546,7 @@ static void MX_TIM2_Init(void)
   sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_FALLING;
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 0;
+  sConfigIC.ICFilter = 15;
   if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_2) != HAL_OK)
   {
     Error_Handler();
@@ -742,7 +749,7 @@ void StartTask02(void *argument)
   /* Infinite loop */
   for (;;) {
     tps_rpm.rpm = 500000 / (ADC_SMA_Data[1] / 4);  // Расчет оборотов
-                                                 //	  tps_rpm.rpm = 1500;
+                                                   //	  tps_rpm.rpm = 1500;
     txHeader.IDE = CAN_ID_STD;
     txHeader.RTR = CAN_RTR_DATA;
 
@@ -849,11 +856,6 @@ void StartTask03(void *argument)
     HAL_GPIO_WritePin(Fan2_GPIO_Port, Fan2_Pin, on_off);
 
     osDelay(50);
-
-
-
-
-
   }
   /* USER CODE END StartTask03 */
 }
@@ -882,22 +884,24 @@ void StartTask04(void *argument)
   /* USER CODE BEGIN StartTask04 */
   /* Infinite loop */
   for (;;) {
-//    HAL_UART_Transmit(
-//        &huart1, transmitUART,
-//        sprintf((char *)transmitUART, "filtr - %d \n", ADC_SMA_Data[0]),
-//        0xffff);
-//    osDelay(1);
-//
-//    HAL_UART_Transmit(
-//        &huart1, transmitUART,
-//        sprintf((char *)transmitUART, "Koef - %d \n", tps_rpm.coef), 0xffff);
-//    osDelay(1);
-//
-//    HAL_UART_Transmit(&huart1, transmitUART,
-//                      sprintf((char *)transmitUART, "Engine Temp - %d C\n ",
-//                              tps_rpm.tmp - 40),
-//                      0xffff);
-//    osDelay(1);
+    //    HAL_UART_Transmit(
+    //        &huart1, transmitUART,
+    //        sprintf((char *)transmitUART, "filtr - %d \n", ADC_SMA_Data[0]),
+    //        0xffff);
+    //    osDelay(1);
+    //
+    //    HAL_UART_Transmit(
+    //        &huart1, transmitUART,
+    //        sprintf((char *)transmitUART, "Koef - %d \n", tps_rpm.coef),
+    //        0xffff);
+    //    osDelay(1);
+    //
+    //    HAL_UART_Transmit(&huart1, transmitUART,
+    //                      sprintf((char *)transmitUART, "Engine Temp - %d C\n
+    //                      ",
+    //                              tps_rpm.tmp - 40),
+    //                      0xffff);
+    //    osDelay(1);
     HAL_UART_Transmit(
         &huart1, transmitUART,
         sprintf((char *)transmitUART, "Engine Speed - %d\n ", tps_rpm.rpm),
@@ -907,13 +911,15 @@ void StartTask04(void *argument)
         &huart1, transmitUART,
         sprintf((char *)transmitUART, "Count - %d\n ", tps_rpm.count), 0xffff);
     osDelay(1);
-//    if (on_off) {
-//      HAL_UART_Transmit(&huart1, transmitUART,
-//                        sprintf((char *)transmitUART, "Fan On\n "), 0xffff);
-//    } else {
-//      HAL_UART_Transmit(&huart1, transmitUART,
-//                        sprintf((char *)transmitUART, "Fan Off\n "), 0xffff);
-//    }
+    //    if (on_off) {
+    //      HAL_UART_Transmit(&huart1, transmitUART,
+    //                        sprintf((char *)transmitUART, "Fan On\n "),
+    //                        0xffff);
+    //    } else {
+    //      HAL_UART_Transmit(&huart1, transmitUART,
+    //                        sprintf((char *)transmitUART, "Fan Off\n "),
+    //                        0xffff);
+    //    }
     osDelay(100);
   }
   /* USER CODE END StartTask04 */
@@ -929,20 +935,21 @@ void StartTask04(void *argument)
 void StartTask05(void *argument)
 {
   /* USER CODE BEGIN StartTask05 */
-	  double arr = 0;
+  double arr = 0;
   /* Infinite loop */
   for (;;) {
-//    HAL_GPIO_WritePin(temp_GPIO_Port, temp_Pin, SET);
-//    osDelay(1);
-//    HAL_GPIO_WritePin(temp_GPIO_Port, temp_Pin, RESET);
-//    osDelay(23);
-	    if( tps_rpm.count > 200){
-	    	ADC_SMA_Data[1] = SMA_FILTER_Get_Value(SMA_Filter_Buffer_1, &tps_rpm.count);
-	    	TIM1->CCR1 = 120;
-	    	    arr = ADC_SMA_Data[1] * 1.5;
-	    TIM1->ARR = arr;
-	    }
-    osDelay(20);
+    //    HAL_GPIO_WritePin(temp_GPIO_Port, temp_Pin, SET);
+    //    osDelay(1);
+    //    HAL_GPIO_WritePin(temp_GPIO_Port, temp_Pin, RESET);
+    //    osDelay(23);
+
+    ADC_SMA_Data[1] = SMA_FILTER_Get_Value(SMA_Filter_Buffer_2, &tps_rpm.count);
+
+    TIM1->CCR1 = 100;
+    arr = ADC_SMA_Data[1] * 1.5;
+    TIM1->ARR = arr;
+
+    osDelay(5);
   }
   /* USER CODE END StartTask05 */
 }
