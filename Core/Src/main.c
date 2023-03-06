@@ -232,8 +232,9 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim1);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
   HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_2);
-  HAL_TIM_PWM_Start_IT(&htim1, TIM_CHANNEL_1);
-  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1);
+  HAL_TIM_OC_Start_IT(&htim1, TIM_CHANNEL_1);
+//  HAL_TIM_Start_IT(&htim1, TIM_CHANNEL_1);
+//  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1);
   // uint8_t transmitUART[15];
   /* USER CODE END 2 */
 
@@ -460,7 +461,7 @@ static void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  if (HAL_TIM_PWM_Init(&htim1) != HAL_OK)
+  if (HAL_TIM_OC_Init(&htim1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -470,14 +471,14 @@ static void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.OCMode = TIM_OCMODE_TIMING;
   sConfigOC.Pulse = 0;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
   sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -495,7 +496,6 @@ static void MX_TIM1_Init(void)
   /* USER CODE BEGIN TIM1_Init 2 */
 
   /* USER CODE END TIM1_Init 2 */
-  HAL_TIM_MspPostInit(&htim1);
 
 }
 
@@ -546,7 +546,7 @@ static void MX_TIM2_Init(void)
   sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_FALLING;
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 15;
+  sConfigIC.ICFilter = 0;
   if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_2) != HAL_OK)
   {
     Error_Handler();
@@ -664,7 +664,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, OutSpeed_Pin|Fan2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, OutSpeed_Pin|Fan2_Pin|out_t_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(Fan1_GPIO_Port, Fan1_Pin, GPIO_PIN_RESET);
@@ -682,6 +682,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(InSpeed_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : out_t_Pin */
+  GPIO_InitStruct.Pin = out_t_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
+  HAL_GPIO_Init(out_t_GPIO_Port, &GPIO_InitStruct);
+
   /*Configure GPIO pin : Fan1_Pin */
   GPIO_InitStruct.Pin = Fan1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -692,6 +699,13 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
+{
+        if(htim->Instance == TIM1)
+        {
+                HAL_GPIO_TogglePin(out_t_GPIO_Port, out_t_Pin);
+        }
+}
 uint8_t TachoCount = 0;
 uint8_t delitel_tacho =
     2;  // Делитель тахометра - 2 - было четыре цилиндра, стало 6
@@ -904,7 +918,7 @@ void StartTask04(void *argument)
     //    osDelay(1);
     HAL_UART_Transmit(
         &huart1, transmitUART,
-        sprintf((char *)transmitUART, "Engine Speed - %d\n ", tps_rpm.rpm),
+        sprintf((char *)transmitUART, "Engine Speed - %d\n ", ADC_SMA_Data[1]),
         0xffff);
     osDelay(1);
     HAL_UART_Transmit(
@@ -938,19 +952,20 @@ void StartTask05(void *argument)
   double arr = 0;
   /* Infinite loop */
   for (;;) {
-    //    HAL_GPIO_WritePin(temp_GPIO_Port, temp_Pin, SET);
-    //    osDelay(1);
-    //    HAL_GPIO_WritePin(temp_GPIO_Port, temp_Pin, RESET);
-    //    osDelay(23);
-	    if (tps_rpm.count > 150) {
+//        HAL_GPIO_WritePin(temp_GPIO_Port, temp_Pin, SET);
+//        osDelay(1);
+//        HAL_GPIO_WritePin(temp_GPIO_Port, temp_Pin, RESET);
+//        osDelay(23);
+	  osDelay(3);
+	    if (tps_rpm.count > 160) {
 	      ADC_SMA_Data[1] =
 	          SMA_FILTER_Get_Value(SMA_Filter_Buffer_2, &tps_rpm.count);
 	    }
-    TIM1->CCR1 = 100;
-    arr = ADC_SMA_Data[1] * 1.5;
+
+    arr = ADC_SMA_Data[1]*2.2;
     TIM1->ARR = arr;
 
-    osDelay(3);
+
   }
   /* USER CODE END StartTask05 */
 }
