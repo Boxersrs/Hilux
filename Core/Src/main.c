@@ -32,27 +32,9 @@ struct tps_rpm {
   uint8_t coef;
 } tps_rpm;
 #include "SMA_filter_lib.h"
-#define VREFINT \
-  1200.0f  // Типичное 1.200 V (Умножил на 1000 для более точных расчетов)
-
-uint16_t SMA_Filter_Buffer_1[SMA_FILTER_ORDER] = {
-    0,
-};
-uint16_t SMA_Filter_Buffer_2[SMA_FILTER_ORDER] = {
-    0,
-};
-uint16_t ADC_RAW_Data[2] = {
-    0,
-};
-uint16_t ADC_SMA_Data[2] = {
-    0,
-};
-
-uint16_t Counter_DMA_IT = 0;
-
+uint16_t SMA_Filter_Buffer_1[SMA_FILTER_ORDER] = {0,};
+uint16_t ADC_SMA_Data[2] = {0,};
 uint8_t transmitUART[30];
-float Voltage_bit_ADC = 0.0f;  // 1 бит напряжения в вольтах
-float ADC1_Voltage = 0.0f;     // Напряжение на АЦП1
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -830,9 +812,7 @@ uint8_t calc_temp(uint16_t adc) {  // �?нтерполяция темпера�
   return temp;
 }
 
-uint8_t on_off = 0;
-uint16_t adc_value;
-double arr = 0;
+
 /**
  * @brief Function implementing the myTask03 thread.
  * @param argument: Not used
@@ -843,6 +823,8 @@ void StartTask03(void *argument)
 {
   /* USER CODE BEGIN StartTask03 */
   uint8_t x = 0;
+  uint8_t on_off = 0;
+  double arr = 0;
   //	uint16_t prsc = 450;
   tps_rpm.coef = 104;
   /* Infinite loop */
@@ -873,8 +855,8 @@ void StartTask03(void *argument)
     osDelay(50);
 
 
-    if( tps_rpm.count > 300){
-    	TIM1->CCR1 = 100;
+    if( tps_rpm.count > 200){
+    	TIM1->CCR1 = 120;
     	    arr = tps_rpm.count * 1.5;
     TIM1->ARR = arr;
     }
@@ -909,39 +891,39 @@ void StartTask04(void *argument)
   //	uint8_t transmitUART[30];
   /* Infinite loop */
   for (;;) {
-    HAL_UART_Transmit(
-        &huart1, transmitUART,
-        sprintf((char *)transmitUART, "filtr - %d \n", ADC_SMA_Data[0]),
-        0xffff);
-    osDelay(1);
-
-    HAL_UART_Transmit(
-        &huart1, transmitUART,
-        sprintf((char *)transmitUART, "Koef - %d \n", tps_rpm.coef), 0xffff);
-    osDelay(1);
-
-    HAL_UART_Transmit(&huart1, transmitUART,
-                      sprintf((char *)transmitUART, "Engine Temp - %d C\n ",
-                              tps_rpm.tmp - 40),
-                      0xffff);
-    osDelay(1);
-    HAL_UART_Transmit(
-        &huart1, transmitUART,
-        sprintf((char *)transmitUART, "Engine Speed - %d\n ", tps_rpm.rpm),
-        0xffff);
-    osDelay(1);
+//    HAL_UART_Transmit(
+//        &huart1, transmitUART,
+//        sprintf((char *)transmitUART, "filtr - %d \n", ADC_SMA_Data[0]),
+//        0xffff);
+//    osDelay(1);
+//
+//    HAL_UART_Transmit(
+//        &huart1, transmitUART,
+//        sprintf((char *)transmitUART, "Koef - %d \n", tps_rpm.coef), 0xffff);
+//    osDelay(1);
+//
+//    HAL_UART_Transmit(&huart1, transmitUART,
+//                      sprintf((char *)transmitUART, "Engine Temp - %d C\n ",
+//                              tps_rpm.tmp - 40),
+//                      0xffff);
+//    osDelay(1);
+//    HAL_UART_Transmit(
+//        &huart1, transmitUART,
+//        sprintf((char *)transmitUART, "Engine Speed - %d\n ", tps_rpm.rpm),
+//        0xffff);
+//    osDelay(1);
     HAL_UART_Transmit(
         &huart1, transmitUART,
         sprintf((char *)transmitUART, "Count - %ld\n ", tps_rpm.count), 0xffff);
     osDelay(1);
-    if (on_off) {
-      HAL_UART_Transmit(&huart1, transmitUART,
-                        sprintf((char *)transmitUART, "Fan On\n "), 0xffff);
-    } else {
-      HAL_UART_Transmit(&huart1, transmitUART,
-                        sprintf((char *)transmitUART, "Fan Off\n "), 0xffff);
-    }
-    osDelay(1000);
+//    if (on_off) {
+//      HAL_UART_Transmit(&huart1, transmitUART,
+//                        sprintf((char *)transmitUART, "Fan On\n "), 0xffff);
+//    } else {
+//      HAL_UART_Transmit(&huart1, transmitUART,
+//                        sprintf((char *)transmitUART, "Fan Off\n "), 0xffff);
+//    }
+    osDelay(100);
   }
   /* USER CODE END StartTask04 */
 }
