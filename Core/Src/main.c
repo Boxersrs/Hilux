@@ -26,7 +26,7 @@
 struct tps_rpm {
   uint8_t tmp;
   uint16_t rpm;
-  unsigned long count;
+  uint16_t count;
   uint16_t procent;
   uint16_t adc;
   uint8_t coef;
@@ -741,7 +741,7 @@ void StartTask02(void *argument)
   uint8_t send_count = 0;
   /* Infinite loop */
   for (;;) {
-    tps_rpm.rpm = 500000 / (tps_rpm.count / 4);  // Расчет оборотов
+    tps_rpm.rpm = 500000 / (ADC_SMA_Data[1] / 4);  // Расчет оборотов
                                                  //	  tps_rpm.rpm = 1500;
     txHeader.IDE = CAN_ID_STD;
     txHeader.RTR = CAN_RTR_DATA;
@@ -811,8 +811,6 @@ uint8_t calc_temp(uint16_t adc) {  // �?нтерполяция темпера�
   }
   return temp;
 }
-
-
 /**
  * @brief Function implementing the myTask03 thread.
  * @param argument: Not used
@@ -824,8 +822,6 @@ void StartTask03(void *argument)
   /* USER CODE BEGIN StartTask03 */
   uint8_t x = 0;
   uint8_t on_off = 0;
-  double arr = 0;
-  //	uint16_t prsc = 450;
   tps_rpm.coef = 104;
   /* Infinite loop */
   for (;;) {
@@ -855,11 +851,7 @@ void StartTask03(void *argument)
     osDelay(50);
 
 
-    if( tps_rpm.count > 200){
-    	TIM1->CCR1 = 120;
-    	    arr = tps_rpm.count * 1.5;
-    TIM1->ARR = arr;
-    }
+
 
 
   }
@@ -888,7 +880,6 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
 void StartTask04(void *argument)
 {
   /* USER CODE BEGIN StartTask04 */
-  //	uint8_t transmitUART[30];
   /* Infinite loop */
   for (;;) {
 //    HAL_UART_Transmit(
@@ -907,14 +898,14 @@ void StartTask04(void *argument)
 //                              tps_rpm.tmp - 40),
 //                      0xffff);
 //    osDelay(1);
-//    HAL_UART_Transmit(
-//        &huart1, transmitUART,
-//        sprintf((char *)transmitUART, "Engine Speed - %d\n ", tps_rpm.rpm),
-//        0xffff);
-//    osDelay(1);
     HAL_UART_Transmit(
         &huart1, transmitUART,
-        sprintf((char *)transmitUART, "Count - %ld\n ", tps_rpm.count), 0xffff);
+        sprintf((char *)transmitUART, "Engine Speed - %d\n ", tps_rpm.rpm),
+        0xffff);
+    osDelay(1);
+    HAL_UART_Transmit(
+        &huart1, transmitUART,
+        sprintf((char *)transmitUART, "Count - %d\n ", tps_rpm.count), 0xffff);
     osDelay(1);
 //    if (on_off) {
 //      HAL_UART_Transmit(&huart1, transmitUART,
@@ -938,13 +929,20 @@ void StartTask04(void *argument)
 void StartTask05(void *argument)
 {
   /* USER CODE BEGIN StartTask05 */
+	  double arr = 0;
   /* Infinite loop */
   for (;;) {
 //    HAL_GPIO_WritePin(temp_GPIO_Port, temp_Pin, SET);
 //    osDelay(1);
 //    HAL_GPIO_WritePin(temp_GPIO_Port, temp_Pin, RESET);
 //    osDelay(23);
-    osDelay(1000);
+	    if( tps_rpm.count > 200){
+	    	ADC_SMA_Data[1] = SMA_FILTER_Get_Value(SMA_Filter_Buffer_1, &tps_rpm.count);
+	    	TIM1->CCR1 = 120;
+	    	    arr = ADC_SMA_Data[1] * 1.5;
+	    TIM1->ARR = arr;
+	    }
+    osDelay(20);
   }
   /* USER CODE END StartTask05 */
 }
