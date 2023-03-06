@@ -65,6 +65,8 @@ void Error_Handler(void);
 #define InSpeed_GPIO_Port GPIOA
 #define Fan2_Pin GPIO_PIN_6
 #define Fan2_GPIO_Port GPIOA
+#define temp_Pin GPIO_PIN_4
+#define temp_GPIO_Port GPIOB
 #define Fan1_Pin GPIO_PIN_7
 #define Fan1_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
