@@ -942,14 +942,15 @@ void StartTask05(void *argument)
     //    osDelay(1);
     //    HAL_GPIO_WritePin(temp_GPIO_Port, temp_Pin, RESET);
     //    osDelay(23);
-
-    ADC_SMA_Data[1] = SMA_FILTER_Get_Value(SMA_Filter_Buffer_2, &tps_rpm.count);
-
+	    if (tps_rpm.count > 150) {
+	      ADC_SMA_Data[1] =
+	          SMA_FILTER_Get_Value(SMA_Filter_Buffer_2, &tps_rpm.count);
+	    }
     TIM1->CCR1 = 100;
     arr = ADC_SMA_Data[1] * 1.5;
     TIM1->ARR = arr;
 
-    osDelay(5);
+    osDelay(3);
   }
   /* USER CODE END StartTask05 */
 }
