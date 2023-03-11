@@ -73,7 +73,6 @@ ADC_HandleTypeDef hadc1;
 
 CAN_HandleTypeDef hcan;
 
-TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 
@@ -151,7 +150,6 @@ static void MX_USART1_UART_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
-static void MX_TIM1_Init(void);
 void StartDefaultTask(void *argument);
 void StartTask02(void *argument);
 void StartTask03(void *argument);
@@ -207,7 +205,6 @@ int main(void)
   MX_ADC1_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
-  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
   /////////////////////////////////////---CAN---/////////////////////////////////
   canfil.FilterBank = 0;
@@ -229,10 +226,10 @@ int main(void)
   HAL_ADCEx_Calibration_Start(&hadc1);
   HAL_TIM_Base_Start_IT(&htim2);
   HAL_TIM_Base_Start_IT(&htim3);
-  HAL_TIM_Base_Start_IT(&htim1);
+
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
   HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_2);
-  HAL_TIM_OC_Start_IT(&htim1, TIM_CHANNEL_1);
+
 //  HAL_TIM_Start_IT(&htim1, TIM_CHANNEL_1);
 //  HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1);
   // uint8_t transmitUART[15];
@@ -426,80 +423,6 @@ static void MX_CAN_Init(void)
 }
 
 /**
-  * @brief TIM1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM1_Init(void)
-{
-
-  /* USER CODE BEGIN TIM1_Init 0 */
-
-  /* USER CODE END TIM1_Init 0 */
-
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_OC_InitTypeDef sConfigOC = {0};
-  TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
-
-  /* USER CODE BEGIN TIM1_Init 1 */
-
-  /* USER CODE END TIM1_Init 1 */
-  htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 719;
-  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 65535;
-  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim1.Init.RepetitionCounter = 0;
-  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_TIM_OC_Init(&htim1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sConfigOC.OCMode = TIM_OCMODE_TIMING;
-  sConfigOC.Pulse = 0;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
-  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-  if (HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
-  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
-  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
-  sBreakDeadTimeConfig.DeadTime = 0;
-  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
-  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
-  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
-  if (HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM1_Init 2 */
-
-  /* USER CODE END TIM1_Init 2 */
-
-}
-
-/**
   * @brief TIM2 Initialization Function
   * @param None
   * @retval None
@@ -543,7 +466,7 @@ static void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
-  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_FALLING;
+  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
   sConfigIC.ICFilter = 0;
@@ -689,12 +612,25 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
   HAL_GPIO_Init(out_t_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : intacho_Pin */
+  GPIO_InitStruct.Pin = intacho_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(intacho_GPIO_Port, &GPIO_InitStruct);
+
   /*Configure GPIO pin : Fan1_Pin */
   GPIO_InitStruct.Pin = Fan1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(Fan1_GPIO_Port, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI2_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(EXTI2_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI4_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(EXTI4_IRQn);
 
 }
 
@@ -707,8 +643,7 @@ void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
         }
 }
 uint8_t TachoCount = 0;
-uint8_t delitel_tacho =
-    2;  // Делитель тахометра - 2 - было четыре цилиндра, стало 6
+uint8_t delitel_tacho = 2;  // Делитель тахометра - 2 - было четыре цилиндра, стало 6
 uint8_t SpeedCount = 0;
 uint8_t delitel = 10;  // Делитель спидометра
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
@@ -726,7 +661,15 @@ void HAL_GPIO_EXTI_Callback(uint16_t InSpeed) {
       HAL_GPIO_TogglePin(OutSpeed_GPIO_Port, OutSpeed_Pin);
     if (SpeedCount >= delitel) SpeedCount = 0;
     SpeedCount = SpeedCount + 1;
-  } else {
+  }else if(InSpeed == intacho_Pin){
+if(TachoCount >=13 && TachoCount<=16){
+	TachoCount = 0;
+} else {
+	HAL_GPIO_TogglePin(out_t_GPIO_Port, out_t_Pin);
+	TachoCount++;
+}
+
+}else {
     __NOP();
   }
 }
@@ -775,7 +718,7 @@ void StartTask02(void *argument)
     txHeader.TransmitGlobalTime = DISABLE;
     HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_2C4, &canMailbox);
     send_count++;
-    // if (send_count >= 45) {
+     if (send_count >= 50) {
     // send 0x38A// 920ms
     osDelay(1);
     txHeader.DLC = 5;
@@ -800,7 +743,7 @@ void StartTask02(void *argument)
     txHeader.TransmitGlobalTime = DISABLE;
     HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_4C1, &canMailbox);
     send_count = 0;
-    //}
+    }
     osDelay(20);
   }
   /* USER CODE END StartTask02 */
@@ -918,7 +861,7 @@ void StartTask04(void *argument)
     //    osDelay(1);
     HAL_UART_Transmit(
         &huart1, transmitUART,
-        sprintf((char *)transmitUART, "Engine Speed - %d\n ", ADC_SMA_Data[1]),
+        sprintf((char *)transmitUART, "Engine Speed - %d\n ", tps_rpm.rpm),
         0xffff);
     osDelay(1);
     HAL_UART_Transmit(
@@ -949,22 +892,30 @@ void StartTask04(void *argument)
 void StartTask05(void *argument)
 {
   /* USER CODE BEGIN StartTask05 */
-  double arr = 0;
+
+//  double buffer = 0;
+//  uint16_t count2 = 0;
   /* Infinite loop */
   for (;;) {
 //        HAL_GPIO_WritePin(temp_GPIO_Port, temp_Pin, SET);
 //        osDelay(1);
 //        HAL_GPIO_WritePin(temp_GPIO_Port, temp_Pin, RESET);
 //        osDelay(23);
-	  osDelay(3);
-	    if (tps_rpm.count > 160) {
-	      ADC_SMA_Data[1] =
-	          SMA_FILTER_Get_Value(SMA_Filter_Buffer_2, &tps_rpm.count);
-	    }
-
-    arr = ADC_SMA_Data[1]*2.2;
-    TIM1->ARR = arr;
-
+//
+//	      ADC_SMA_Data[1] =
+//	          SMA_FILTER_Get_Value(SMA_Filter_Buffer_2, &tps_rpm.count);
+//
+//if(ADC_SMA_Data[1]*2.2 <= 160 || ADC_SMA_Data[1]*2.2 >= 3000){
+//	count2++;
+//} else {
+//	buffer = ADC_SMA_Data[1]*2.2;
+//	count2 = 0;
+//}
+//if(count2 >= 50)
+//	buffer = 0;
+//
+//    TIM1->ARR = buffer;
+    osDelay(500);
 
   }
   /* USER CODE END StartTask05 */

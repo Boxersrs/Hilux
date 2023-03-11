@@ -63,10 +63,14 @@ void Error_Handler(void);
 #define OutSpeed_GPIO_Port GPIOA
 #define InSpeed_Pin GPIO_PIN_2
 #define InSpeed_GPIO_Port GPIOA
+#define InSpeed_EXTI_IRQn EXTI2_IRQn
 #define Fan2_Pin GPIO_PIN_6
 #define Fan2_GPIO_Port GPIOA
 #define out_t_Pin GPIO_PIN_7
 #define out_t_GPIO_Port GPIOA
+#define intacho_Pin GPIO_PIN_4
+#define intacho_GPIO_Port GPIOB
+#define intacho_EXTI_IRQn EXTI4_IRQn
 #define Fan1_Pin GPIO_PIN_7
 #define Fan1_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
