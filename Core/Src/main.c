@@ -609,7 +609,7 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pin = out_t_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(out_t_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : intacho_Pin */
@@ -635,14 +635,7 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
-{
-        if(htim->Instance == TIM1)
-        {
-                HAL_GPIO_TogglePin(out_t_GPIO_Port, out_t_Pin);
-        }
-}
-uint8_t TachoCount = 0;
+uint8_t TachoCount = 1;
 uint8_t delitel_tacho = 2;  // Делитель тахометра - 2 - было четыре цилиндра, стало 6
 uint8_t SpeedCount = 0;
 uint8_t delitel = 10;  // Делитель спидометра
@@ -661,16 +654,18 @@ void HAL_GPIO_EXTI_Callback(uint16_t InSpeed) {
       HAL_GPIO_TogglePin(OutSpeed_GPIO_Port, OutSpeed_Pin);
     if (SpeedCount >= delitel) SpeedCount = 0;
     SpeedCount = SpeedCount + 1;
-  }else if(InSpeed == intacho_Pin){
-if(TachoCount >=13 && TachoCount<=16){
-	TachoCount = 0;
-} else {
-	HAL_GPIO_TogglePin(out_t_GPIO_Port, out_t_Pin);
+  }
+  if(InSpeed == intacho_Pin){
+	if(TachoCount >=9 && TachoCount<=12){
+		if(TachoCount==12){
+			TachoCount=1;
+		} else {
+			TachoCount++;
+		}
+	} else {
+		HAL_GPIO_TogglePin(out_t_GPIO_Port, out_t_Pin);
+	}
 	TachoCount++;
-}
-
-}else {
-    __NOP();
   }
 }
 /* USER CODE END 4 */
