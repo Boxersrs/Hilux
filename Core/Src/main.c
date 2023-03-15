@@ -41,7 +41,9 @@ uint16_t SMA_Filter_Buffer_2[SMA_FILTER_ORDER] = {
 uint16_t ADC_SMA_Data[2] = {
     0,
 };
+uint16_t ADC_RAW_Data[2] = { 0, };
 uint8_t transmitUART[30];
+uint8_t AC = 0;
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -136,7 +138,43 @@ const osThreadAttr_t myTask05_attributes = {
   .cb_size = sizeof(myTask05ControlBlock),
   .stack_mem = &myTask05Buffer[0],
   .stack_size = sizeof(myTask05Buffer),
-  .priority = (osPriority_t) osPriorityAboveNormal,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for myTask06 */
+osThreadId_t myTask06Handle;
+uint32_t myTask06Buffer[ 128 ];
+osStaticThreadDef_t myTask06ControlBlock;
+const osThreadAttr_t myTask06_attributes = {
+  .name = "myTask06",
+  .cb_mem = &myTask06ControlBlock,
+  .cb_size = sizeof(myTask06ControlBlock),
+  .stack_mem = &myTask06Buffer[0],
+  .stack_size = sizeof(myTask06Buffer),
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for myTask07 */
+osThreadId_t myTask07Handle;
+uint32_t myTask07Buffer[ 128 ];
+osStaticThreadDef_t myTask07ControlBlock;
+const osThreadAttr_t myTask07_attributes = {
+  .name = "myTask07",
+  .cb_mem = &myTask07ControlBlock,
+  .cb_size = sizeof(myTask07ControlBlock),
+  .stack_mem = &myTask07Buffer[0],
+  .stack_size = sizeof(myTask07Buffer),
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for myTask08 */
+osThreadId_t myTask08Handle;
+uint32_t myTask08Buffer[ 128 ];
+osStaticThreadDef_t myTask08ControlBlock;
+const osThreadAttr_t myTask08_attributes = {
+  .name = "myTask08",
+  .cb_mem = &myTask08ControlBlock,
+  .cb_size = sizeof(myTask08ControlBlock),
+  .stack_mem = &myTask08Buffer[0],
+  .stack_size = sizeof(myTask08Buffer),
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* USER CODE BEGIN PV */
 
@@ -155,6 +193,9 @@ void StartTask02(void *argument);
 void StartTask03(void *argument);
 void StartTask04(void *argument);
 void StartTask05(void *argument);
+void StartTask06(void *argument);
+void StartTask07(void *argument);
+void StartTask08(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -169,6 +210,9 @@ CAN_FilterTypeDef canfil;      // CAN Bus Filter
 uint32_t canMailbox;           // CAN Bus Mail box variable
 uint8_t byte_6_7[2] = {0};
 
+uint8_t can_send_38A[5] = {0x0C, 0, 0, 0, 0};
+uint8_t can_send_4C1[8] = {0x01, 0, 0x04, 0x04, 0, 0, 0, 0};
+uint8_t can_send_2C4[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 uint8_t rxbuffer[8];
 /* USER CODE END 0 */
 
@@ -269,6 +313,15 @@ int main(void)
 
   /* creation of myTask05 */
   myTask05Handle = osThreadNew(StartTask05, NULL, &myTask05_attributes);
+
+  /* creation of myTask06 */
+  myTask06Handle = osThreadNew(StartTask06, NULL, &myTask06_attributes);
+
+  /* creation of myTask07 */
+  myTask07Handle = osThreadNew(StartTask07, NULL, &myTask07_attributes);
+
+  /* creation of myTask08 */
+  myTask08Handle = osThreadNew(StartTask08, NULL, &myTask08_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -469,7 +522,7 @@ static void MX_TIM2_Init(void)
   sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 0;
+  sConfigIC.ICFilter = 4;
   if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_2) != HAL_OK)
   {
     Error_Handler();
@@ -500,7 +553,7 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 479;
+  htim3.Init.Prescaler = 470;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim3.Init.Period = 63488;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -527,7 +580,7 @@ static void MX_TIM3_Init(void)
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
   sConfigOC.Pulse = 0;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  sConfigOC.OCFastMode = TIM_OCFAST_ENABLE;
   if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
   {
     Error_Handler();
@@ -595,12 +648,12 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(Fan1_GPIO_Port, Fan1_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : OutSpeed_Pin Fan2_Pin */
-  GPIO_InitStruct.Pin = OutSpeed_Pin|Fan2_Pin;
+  /*Configure GPIO pin : OutSpeed_Pin */
+  GPIO_InitStruct.Pin = OutSpeed_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
+  HAL_GPIO_Init(OutSpeed_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : InSpeed_Pin */
   GPIO_InitStruct.Pin = InSpeed_Pin;
@@ -608,17 +661,17 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(InSpeed_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : OutTacho_Pin */
-  GPIO_InitStruct.Pin = OutTacho_Pin;
+  /*Configure GPIO pins : Fan2_Pin OutTacho_Pin */
+  GPIO_InitStruct.Pin = Fan2_Pin|OutTacho_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
-  HAL_GPIO_Init(OutTacho_GPIO_Port, &GPIO_InitStruct);
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pin : InTacho_Pin */
   GPIO_InitStruct.Pin = InTacho_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(InTacho_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : Fan1_Pin */
@@ -658,10 +711,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t InSpeed) {
     if (SpeedCount >= delitel) SpeedCount = 0;
     SpeedCount = SpeedCount + 1;
   } else if (InSpeed == InTacho_Pin) {
-	  if (TachoCount < 9)
-	    HAL_GPIO_TogglePin(OutTacho_GPIO_Port, OutTacho_Pin);
-	  if (TachoCount == 12) TachoCount = 0;
-	  TachoCount = TachoCount + 1;
+	  HAL_GPIO_TogglePin(OutTacho_GPIO_Port, OutTacho_Pin);
+//	  if (TachoCount < 9)
+//	    HAL_GPIO_TogglePin(OutTacho_GPIO_Port, OutTacho_Pin);
+//	  if (TachoCount == 12) TachoCount = 0;
+//	  TachoCount = TachoCount + 1;
   } else {
     __NOP();
   }
@@ -695,15 +749,13 @@ void StartDefaultTask(void *argument)
 void StartTask02(void *argument)
 {
   /* USER CODE BEGIN StartTask02 */
-  uint8_t send_count = 0;
   uint8_t init = 0;
-  txHeader.TransmitGlobalTime = DISABLE;
-  uint8_t can_send_38A[5] = {0x0C, 0, 0, 0, 0};
-  uint8_t can_send_4C1[8] = {0x01, 0, 0x04, 0x04, 0, 0, 0, 0};
+
   /* Infinite loop */
   for (;;) {
-	    uint8_t can_send_2C4[8] = {
-	        tps_rpm.rpm / 0xff, tps_rpm.rpm % 0xff, 0, 0, 0, 0, 0, 0};
+	  txHeader.IDE = CAN_ID_STD;
+	  txHeader.RTR = CAN_RTR_DATA;
+	  txHeader.TransmitGlobalTime = DISABLE;
 	  if(!init) {
 		    txHeader.DLC = 8;
 		    txHeader.StdId = 0x2C4;
@@ -731,45 +783,20 @@ void StartTask02(void *argument)
 		    osDelay(24);
 		    HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_2C4, &canMailbox);
 		    osDelay(24);
+		    HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_2C4, &canMailbox);
+		    osDelay(24);
 		    init++;
 	  }
-
     tps_rpm.rpm = 100000 / (ADC_SMA_Data[1] / 4);  // Расчет оборотов
-                                                   //	  tps_rpm.rpm = 1500;
-    txHeader.IDE = CAN_ID_STD;
-    txHeader.RTR = CAN_RTR_DATA;
-
     // send 0x2C4// 20 ms
     txHeader.DLC = 8;
-
     txHeader.StdId = 0x2C4;
-    HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_2C4, &canMailbox);
-    send_count++;
-     if (send_count >= 48) {
-    // send 0x38A// 920ms
-//    osDelay(1);
-    txHeader.DLC = 5;
-    txHeader.StdId = 0x38A;
-    HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_38A, &canMailbox);
-     }
-     if (send_count >= 42) {
-    // send 0x3B4// 920ms
-//    osDelay(1);
-    txHeader.DLC = 7;
-    uint8_t can_send_3B4[7] = {0, 0x08, 0, tps_rpm.tmp, 0, 0, 0};
-    txHeader.StdId = 0x3B4;
-    HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_3B4, &canMailbox);
-     }
-     if (send_count >= 38) {
-    // send 0x4C1// 920ms
-    osDelay(1);
-    txHeader.DLC = 8;
-    txHeader.StdId = 0x4C1;
-    HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_4C1, &canMailbox);
-    send_count = 0;
-    }
-
-    osDelay(24);
+//    can_send_2C4[0] = tps_rpm.rpm / 0xff;
+//    can_send_2C4[1] = tps_rpm.rpm % 0xff;
+		HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_2C4, &canMailbox);
+		osDelay(24);
+		can_send_2C4[0] = 0x03;
+		can_send_2C4[1] = 0xc8;
   }
   /* USER CODE END StartTask02 */
 }
@@ -811,31 +838,55 @@ void StartTask03(void *argument)
   /* USER CODE BEGIN StartTask03 */
   uint8_t x = 0;
   uint8_t on_off = 0;
-  tps_rpm.coef = 104;
+  tps_rpm.coef = 95;
   /* Infinite loop */
   for (;;) {
-    HAL_ADC_Start(&hadc1);
-    HAL_ADC_PollForConversion(&hadc1, 100);
-    tps_rpm.adc = HAL_ADC_GetValue(&hadc1);
-    HAL_ADC_Stop(&hadc1);
-    ADC_SMA_Data[0] = SMA_FILTER_Get_Value(SMA_Filter_Buffer_1, &tps_rpm.adc);
+//    HAL_ADC_Start(&hadc1);
+//    HAL_ADC_PollForConversion(&hadc1, 100);
+//    tps_rpm.adc = HAL_ADC_GetValue(&hadc1);
+//    HAL_ADC_Stop(&hadc1);
+//    if (x > 40) {
+//      tps_rpm.tmp = calc_temp(ADC_SMA_Data[0]);
+//      tps_rpm.procent = tps_rpm.tmp - 67;
+//      if (tps_rpm.procent < 1) tps_rpm.procent = 0;
+//    } else {
+//      x++;
+//      tps_rpm.procent = 0;
+//    }
+//
+//    TIM3->CCR3 = 0xffff / 100 * tps_rpm.procent;
+//    if (tps_rpm.tmp - 40 > 93) on_off = 1;  // Включение вентилятора
+//    if (tps_rpm.tmp - 40 < 90) on_off = 0;  // Выключение вентилятора
+//    if (byte_6_7[0] == 0xFF || byte_6_7[0] == 0xFF)
+//      on_off = 1;  // Включение вентилятора по команде кондиционера
+//    HAL_GPIO_WritePin(Fan1_GPIO_Port, Fan1_Pin, on_off);
+//    HAL_GPIO_WritePin(Fan2_GPIO_Port, Fan2_Pin, on_off);
+//
+//    osDelay(50);
+//  }
 
-    if (x > 40) {
-      tps_rpm.tmp = calc_temp(ADC_SMA_Data[0]);
-      tps_rpm.procent = tps_rpm.tmp - 67;
-      if (tps_rpm.procent < 1) tps_rpm.procent = 0;
-    } else {
-      x++;
-      tps_rpm.procent = 0;
-    }
+		HAL_ADC_Start(&hadc1);
+		HAL_ADC_PollForConversion(&hadc1, 100);
+		HAL_ADC_Stop(&hadc1);
 
-    TIM3->CCR3 = 0xffff / 100 * tps_rpm.procent;
-    if (tps_rpm.tmp - 40 > 93) on_off = 1;  // Включение вентилятора
-    if (tps_rpm.tmp - 40 < 90) on_off = 0;  // Выключение вентилятора
-    if (byte_6_7[0] == 0xFF || byte_6_7[0] == 0xFF)
-      on_off = 1;  // Включение вентилятора по команде кондиционера
-    HAL_GPIO_WritePin(Fan1_GPIO_Port, Fan1_Pin, on_off);
-    HAL_GPIO_WritePin(Fan2_GPIO_Port, Fan2_Pin, on_off);
+		if (x > 40) {
+			tps_rpm.tmp = calc_temp(ADC_SMA_Data[0]);
+			tps_rpm.procent = tps_rpm.tmp - 67;
+			if (tps_rpm.procent < 1)
+				tps_rpm.procent = 0;
+		} else {
+			x++;
+			tps_rpm.procent = 0;
+		}
+		TIM3->CCR3 = 0xffff / 100 * tps_rpm.procent;
+		if (tps_rpm.tmp - 40 > 93)
+			on_off = 1; // Включение вентилятора
+		if (tps_rpm.tmp - 40 < 90)
+			on_off = 0;  // Выключение вентилятора
+		if (byte_6_7[0] == 0xFF || byte_6_7[0] == 0xFF)
+			on_off = 1; // Включение вентилятора по команде кондиционера
+		HAL_GPIO_WritePin(Fan1_GPIO_Port, Fan1_Pin, on_off);
+		HAL_GPIO_WritePin(Fan2_GPIO_Port, Fan2_Pin, on_off);
 
     osDelay(50);
   }
@@ -843,15 +894,16 @@ void StartTask03(void *argument)
 }
 
 /* USER CODE BEGIN Header_StartTask04 */
-void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
-  // получаем сообщение //
-  if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rxHeader, canRx) != HAL_OK) {
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+  if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rxHeader, canRx) != HAL_OK)
+  {
     // Reception Error //
     Error_Handler();
   }
-  if ((rxHeader.StdId == 0x3A0) && (rxHeader.IDE == CAN_ID_STD)) {
-    byte_6_7[0] = canRx[6];
-    byte_6_7[1] = canRx[7];
+  if ((rxHeader.StdId == 0x380) && (rxHeader.IDE == CAN_ID_STD)) {
+    if(canRx[0] == 0x80) AC = 1;
+    if(canRx[0] == 0) AC = 0;
   }
 }
 /////////////////////////////////////---ReadCAN---/////////////////////////////////
@@ -888,7 +940,7 @@ void StartTask04(void *argument)
         sprintf((char *)transmitUART, "Count - %d\n ", tps_rpm.count), 0xffff);
     osDelay(1);
 
-    osDelay(500);
+    osDelay(1000);
   }
   /* USER CODE END StartTask04 */
 }
@@ -905,31 +957,112 @@ void StartTask05(void *argument)
   /* USER CODE BEGIN StartTask05 */
 
 //  double buffer = 0;
-//  uint16_t count2 = 0;
-  /* Infinite loop */
-  for (;;) {
-//        HAL_GPIO_WritePin(temp_GPIO_Port, temp_Pin, SET);
-//        osDelay(1);
-//        HAL_GPIO_WritePin(temp_GPIO_Port, temp_Pin, RESET);
-//        osDelay(23);
-//
-	      ADC_SMA_Data[1] =
-	          SMA_FILTER_Get_Value(SMA_Filter_Buffer_2, &tps_rpm.count);
-//
-//if(ADC_SMA_Data[1]*2.2 <= 160 || ADC_SMA_Data[1]*2.2 >= 3000){
-//	count2++;
-//} else {
-//	buffer = ADC_SMA_Data[1]*2.2;
-//	count2 = 0;
-//}
-//if(count2 >= 50)
-//	buffer = 0;
-//
-//    TIM1->ARR = buffer;
-    osDelay(50);
+  uint16_t Counter_DMA_IT = 0;
 
+  /* Infinite loop */
+//  for (;;) {
+//		Counter_DMA_IT++;
+//		if (Counter_DMA_IT == 50) {
+//			Counter_DMA_IT = 0;
+//			ADC_SMA_Data[0] = SMA_FILTER_Get_Value(SMA_Filter_Buffer_1,
+//					&tps_rpm.adc);
+//			ADC_SMA_Data[1] = SMA_FILTER_Get_Value(SMA_Filter_Buffer_2,
+//					&tps_rpm.count);
+//		}
+//		osDelay(1);
+//  }
+  for (;;) {
+	  ADC_RAW_Data[0] = HAL_ADC_GetValue(&hadc1);
+		Counter_DMA_IT++;
+		if (Counter_DMA_IT == 50) {
+			Counter_DMA_IT = 0;
+			ADC_SMA_Data[0] = SMA_FILTER_Get_Value(SMA_Filter_Buffer_1, &ADC_RAW_Data[0]);
+			ADC_SMA_Data[1] = SMA_FILTER_Get_Value(SMA_Filter_Buffer_2, &tps_rpm.count);
+		}
+    osDelay(1);
   }
   /* USER CODE END StartTask05 */
+}
+
+/* USER CODE BEGIN Header_StartTask06 */
+/**
+* @brief Function implementing the myTask06 thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartTask06 */
+void StartTask06(void *argument)
+{
+  /* USER CODE BEGIN StartTask06 */
+
+  /* Infinite loop */
+  for(;;)
+  {
+		txHeader.IDE = CAN_ID_STD;
+		txHeader.RTR = CAN_RTR_DATA;
+		txHeader.TransmitGlobalTime = DISABLE;
+		txHeader.DLC = 7;
+		uint8_t can_send_3B4[7] = { 0, 0x08, 0, 0x8C, 0, 0, 0 };
+		txHeader.StdId = 0x3B4;
+		HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_3B4, &canMailbox);
+    osDelay(1024);
+  }
+  /* USER CODE END StartTask06 */
+}
+
+/* USER CODE BEGIN Header_StartTask07 */
+/**
+* @brief Function implementing the myTask07 thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartTask07 */
+void StartTask07(void *argument)
+{
+  /* USER CODE BEGIN StartTask07 */
+
+  /* Infinite loop */
+  for(;;)
+  {
+		txHeader.IDE = CAN_ID_STD;
+		txHeader.RTR = CAN_RTR_DATA;
+		txHeader.TransmitGlobalTime = DISABLE;
+		txHeader.DLC = 5;
+		txHeader.StdId = 0x38A;
+		if (AC == 1)
+			can_send_38A[0] = 0x00;
+		else
+			can_send_38A[0] = 0x08;
+
+		HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_38A, &canMailbox);
+    osDelay(1152);
+  }
+  /* USER CODE END StartTask07 */
+}
+
+/* USER CODE BEGIN Header_StartTask08 */
+/**
+* @brief Function implementing the myTask08 thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartTask08 */
+void StartTask08(void *argument)
+{
+  /* USER CODE BEGIN StartTask08 */
+
+  /* Infinite loop */
+  for(;;)
+  {
+		txHeader.IDE = CAN_ID_STD;
+		txHeader.RTR = CAN_RTR_DATA;
+		txHeader.TransmitGlobalTime = DISABLE;
+		txHeader.DLC = 8;
+		txHeader.StdId = 0x4C1;
+		HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_4C1, &canMailbox);
+    osDelay(910);
+  }
+  /* USER CODE END StartTask08 */
 }
 
 /**
