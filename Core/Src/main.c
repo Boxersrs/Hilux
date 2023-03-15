@@ -519,10 +519,10 @@ static void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
-  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
+  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_FALLING;
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 4;
+  sConfigIC.ICFilter = 15;
   if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_2) != HAL_OK)
   {
     Error_Handler();
@@ -705,12 +705,16 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t InSpeed) {
-  if (InSpeed == InSpeed_Pin) {
-    if (SpeedCount == delitel)
-      HAL_GPIO_TogglePin(OutSpeed_GPIO_Port, OutSpeed_Pin);
-    if (SpeedCount >= delitel) SpeedCount = 0;
-    SpeedCount = SpeedCount + 1;
-  } else if (InSpeed == InTacho_Pin) {
+//  if (InSpeed == InSpeed_Pin) {
+//    if (SpeedCount == delitel){
+//    	HAL_GPIO_TogglePin(OutSpeed_GPIO_Port, OutSpeed_Pin);
+//    }
+//    if (SpeedCount >= delitel){
+//    	SpeedCount = 0;
+//    }
+//    SpeedCount = SpeedCount + 1;
+//  } else
+	  if (InSpeed == InTacho_Pin) {
 	  HAL_GPIO_TogglePin(OutTacho_GPIO_Port, OutTacho_Pin);
 //	  if (TachoCount < 9)
 //	    HAL_GPIO_TogglePin(OutTacho_GPIO_Port, OutTacho_Pin);
@@ -838,7 +842,7 @@ void StartTask03(void *argument)
   /* USER CODE BEGIN StartTask03 */
   uint8_t x = 0;
   uint8_t on_off = 0;
-  tps_rpm.coef = 95;
+  tps_rpm.coef = 104;
   /* Infinite loop */
   for (;;) {
 //    HAL_ADC_Start(&hadc1);
@@ -979,7 +983,7 @@ void StartTask05(void *argument)
 			ADC_SMA_Data[0] = SMA_FILTER_Get_Value(SMA_Filter_Buffer_1, &ADC_RAW_Data[0]);
 			ADC_SMA_Data[1] = SMA_FILTER_Get_Value(SMA_Filter_Buffer_2, &tps_rpm.count);
 		}
-    osDelay(1);
+    osDelay(10);
   }
   /* USER CODE END StartTask05 */
 }
@@ -1002,7 +1006,7 @@ void StartTask06(void *argument)
 		txHeader.RTR = CAN_RTR_DATA;
 		txHeader.TransmitGlobalTime = DISABLE;
 		txHeader.DLC = 7;
-		uint8_t can_send_3B4[7] = { 0, 0x08, 0, 0x8C, 0, 0, 0 };
+		uint8_t can_send_3B4[7] = { 0, 0x08, 0, tps_rpm.tmp, 0, 0, 0 };
 		txHeader.StdId = 0x3B4;
 		HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_3B4, &canMailbox);
     osDelay(1024);
