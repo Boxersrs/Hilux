@@ -489,7 +489,6 @@ static void MX_TIM2_Init(void)
 
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_IC_InitTypeDef sConfigIC = {0};
 
   /* USER CODE BEGIN TIM2_Init 1 */
 
@@ -509,21 +508,9 @@ static void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
-  if (HAL_TIM_IC_Init(&htim2) != HAL_OK)
-  {
-    Error_Handler();
-  }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_FALLING;
-  sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
-  sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 15;
-  if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_2) != HAL_OK)
   {
     Error_Handler();
   }
@@ -671,7 +658,7 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin : InTacho_Pin */
   GPIO_InitStruct.Pin = InTacho_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(InTacho_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : Fan1_Pin */
@@ -685,8 +672,8 @@ static void MX_GPIO_Init(void)
   HAL_NVIC_SetPriority(EXTI2_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI2_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI4_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(EXTI4_IRQn);
+  HAL_NVIC_SetPriority(EXTI3_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(EXTI3_IRQn);
 
 }
 
@@ -845,35 +832,11 @@ void StartTask03(void *argument)
   tps_rpm.coef = 104;
   /* Infinite loop */
   for (;;) {
-//    HAL_ADC_Start(&hadc1);
-//    HAL_ADC_PollForConversion(&hadc1, 100);
-//    tps_rpm.adc = HAL_ADC_GetValue(&hadc1);
-//    HAL_ADC_Stop(&hadc1);
-//    if (x > 40) {
-//      tps_rpm.tmp = calc_temp(ADC_SMA_Data[0]);
-//      tps_rpm.procent = tps_rpm.tmp - 67;
-//      if (tps_rpm.procent < 1) tps_rpm.procent = 0;
-//    } else {
-//      x++;
-//      tps_rpm.procent = 0;
-//    }
-//
-//    TIM3->CCR3 = 0xffff / 100 * tps_rpm.procent;
-//    if (tps_rpm.tmp - 40 > 93) on_off = 1;  // Включение вентилятора
-//    if (tps_rpm.tmp - 40 < 90) on_off = 0;  // Выключение вентилятора
-//    if (byte_6_7[0] == 0xFF || byte_6_7[0] == 0xFF)
-//      on_off = 1;  // Включение вентилятора по команде кондиционера
-//    HAL_GPIO_WritePin(Fan1_GPIO_Port, Fan1_Pin, on_off);
-//    HAL_GPIO_WritePin(Fan2_GPIO_Port, Fan2_Pin, on_off);
-//
-//    osDelay(50);
-//  }
-
 		HAL_ADC_Start(&hadc1);
 		HAL_ADC_PollForConversion(&hadc1, 100);
 		HAL_ADC_Stop(&hadc1);
 
-		if (x > 40) {
+		if (x > 220) {
 			tps_rpm.tmp = calc_temp(ADC_SMA_Data[0]);
 			tps_rpm.procent = tps_rpm.tmp - 67;
 			if (tps_rpm.procent < 1)
@@ -964,17 +927,6 @@ void StartTask05(void *argument)
   uint16_t Counter_DMA_IT = 0;
 
   /* Infinite loop */
-//  for (;;) {
-//		Counter_DMA_IT++;
-//		if (Counter_DMA_IT == 50) {
-//			Counter_DMA_IT = 0;
-//			ADC_SMA_Data[0] = SMA_FILTER_Get_Value(SMA_Filter_Buffer_1,
-//					&tps_rpm.adc);
-//			ADC_SMA_Data[1] = SMA_FILTER_Get_Value(SMA_Filter_Buffer_2,
-//					&tps_rpm.count);
-//		}
-//		osDelay(1);
-//  }
   for (;;) {
 	  ADC_RAW_Data[0] = HAL_ADC_GetValue(&hadc1);
 		Counter_DMA_IT++;

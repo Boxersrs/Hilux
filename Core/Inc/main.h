@@ -68,9 +68,9 @@ void Error_Handler(void);
 #define Fan2_GPIO_Port GPIOA
 #define OutTacho_Pin GPIO_PIN_7
 #define OutTacho_GPIO_Port GPIOA
-#define InTacho_Pin GPIO_PIN_4
+#define InTacho_Pin GPIO_PIN_3
 #define InTacho_GPIO_Port GPIOB
-#define InTacho_EXTI_IRQn EXTI4_IRQn
+#define InTacho_EXTI_IRQn EXTI3_IRQn
 #define Fan1_Pin GPIO_PIN_7
 #define Fan1_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
