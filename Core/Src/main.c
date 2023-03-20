@@ -29,7 +29,7 @@ struct tps_rpm {
   uint16_t count;
   uint16_t procent;
   uint16_t adc;
-  uint8_t coef;
+  double coef;
 } tps_rpm;
 #include "SMA_filter_lib.h"
 uint16_t SMA_Filter_Buffer_1[SMA_FILTER_ORDER] = {
@@ -52,12 +52,10 @@ typedef StaticTask_t osStaticThreadDef_t;
 // Скалинг датчика температуры
 // Первое значение - температура в градусах+40
 // второе значение - ADC, которое считается по формуле
-uint16_t scale_temp[2][28] = {
-    {160, 150, 140, 131, 124, 118, 113, 108, 103, 99, 95, 91, 87, 83,
-     80,  76,  72,  68,  65,  61,  56,  52,  47,  42, 35, 28, 17, 0},
-    {255,  343,  433,  521,  610,  699,  787,  877,  965,  1054,
-     1142, 1231, 1320, 1409, 1497, 1586, 1675, 1764, 1853, 1941,
-     2030, 2118, 2207, 2296, 2385, 2473, 2562, 2650}};
+double scale_temp[2][28] = {
+//             100   91   84   78
+    {160, 150, 140, 129, 124, 118, 113, 108, 103, 99, 95, 91, 87, 83, 80,  76,  72,  68,  65,  61,  56,  52,  47,  42, 35, 28, 17, 0},
+    {330, 380, 425, 472, 530, 560, 620, 820, 965, 1054, 1142, 1231, 1320, 1409, 1497, 1586, 1675, 1764, 1853, 1941, 2030, 2118, 2207, 2296, 2385, 2473, 2562, 2650}};
 
 /* USER CODE END PTD */
 
@@ -75,6 +73,7 @@ ADC_HandleTypeDef hadc1;
 
 CAN_HandleTypeDef hcan;
 
+TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 
@@ -188,6 +187,7 @@ static void MX_USART1_UART_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
+static void MX_TIM1_Init(void);
 void StartDefaultTask(void *argument);
 void StartTask02(void *argument);
 void StartTask03(void *argument);
@@ -249,6 +249,7 @@ int main(void)
   MX_ADC1_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
   /////////////////////////////////////---CAN---/////////////////////////////////
   canfil.FilterBank = 0;
@@ -270,7 +271,6 @@ int main(void)
   HAL_ADCEx_Calibration_Start(&hadc1);
   HAL_TIM_Base_Start_IT(&htim2);
   HAL_TIM_Base_Start_IT(&htim3);
-
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
   HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_2);
 
@@ -476,6 +476,52 @@ static void MX_CAN_Init(void)
 }
 
 /**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM1_Init(void)
+{
+
+  /* USER CODE BEGIN TIM1_Init 0 */
+
+  /* USER CODE END TIM1_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 719;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 65535;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM1_Init 2 */
+
+  /* USER CODE END TIM1_Init 2 */
+
+}
+
+/**
   * @brief TIM2 Initialization Function
   * @param None
   * @retval None
@@ -494,7 +540,7 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 719;
+  htim2.Init.Prescaler = 71;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim2.Init.Period = 64000;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -657,7 +703,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : InTacho_Pin */
   GPIO_InitStruct.Pin = InTacho_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(InTacho_GPIO_Port, &GPIO_InitStruct);
 
@@ -678,18 +724,19 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
 uint8_t TachoCount = 1;
 uint8_t delitel_tacho = 2;  // Делитель тахометра - 2 - было четыре цилиндра, стало 6
 uint8_t SpeedCount = 0;
 uint8_t delitel = 10;  // Делитель спидометра
-void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
-  if (htim->Instance == TIM2) {
-    if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2) {
-      tps_rpm.count = HAL_TIM_ReadCapturedValue(&htim2, TIM_CHANNEL_2);
-      TIM2->CNT = 0;
-    }
-  }
-}
+//void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
+//  if (htim->Instance == TIM2) {
+//    if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2) {
+//      tps_rpm.count = HAL_TIM_ReadCapturedValue(&htim2, TIM_CHANNEL_2);
+//      TIM2->CNT = 0;
+//    }
+//  }
+//}
 
 void HAL_GPIO_EXTI_Callback(uint16_t InSpeed) {
 //  if (InSpeed == InSpeed_Pin) {
@@ -702,11 +749,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t InSpeed) {
 //    SpeedCount = SpeedCount + 1;
 //  } else
 	  if (InSpeed == InTacho_Pin) {
-	  HAL_GPIO_TogglePin(OutTacho_GPIO_Port, OutTacho_Pin);
-//	  if (TachoCount < 9)
-//	    HAL_GPIO_TogglePin(OutTacho_GPIO_Port, OutTacho_Pin);
-//	  if (TachoCount == 12) TachoCount = 0;
-//	  TachoCount = TachoCount + 1;
+	  tps_rpm.count++;
+	  TIM2->CNT = 0;
+	  if (TachoCount < 5)
+	    HAL_GPIO_TogglePin(OutTacho_GPIO_Port, OutTacho_Pin);
+	  if (TachoCount == 6) TachoCount = 0;
+	  TachoCount = TachoCount + 1;
   } else {
     __NOP();
   }
@@ -725,7 +773,7 @@ void StartDefaultTask(void *argument)
   /* USER CODE BEGIN 5 */
   /* Infinite loop */
   for (;;) {
-    osDelay(1);
+    osDelay(1000);
   }
   /* USER CODE END 5 */
 }
@@ -786,8 +834,15 @@ void StartTask02(void *argument)
 //    can_send_2C4[1] = tps_rpm.rpm % 0xff;
 		HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_2C4, &canMailbox);
 		osDelay(24);
+		if(tps_rpm.count > 100){
 		can_send_2C4[0] = 0x03;
 		can_send_2C4[1] = 0xc8;
+		tps_rpm.count = 0;
+		} else {
+			can_send_2C4[0] = 0;
+			can_send_2C4[1] = 0;
+		}
+
   }
   /* USER CODE END StartTask02 */
 }
@@ -796,9 +851,9 @@ void StartTask02(void *argument)
 
 // ADC read an FAN remote
 
-uint8_t calc_temp(uint16_t adc) {  // �?нтерполяция температуры
-  uint8_t temp = 0;
-  uint8_t y = 0;
+double calc_temp(double adc) {  // �?нтерполяция температуры
+	double temp = 0;
+    uint8_t y = 0;
   if (adc < scale_temp[1][0] / 100 * tps_rpm.coef) {
     temp = scale_temp[0][0];
   } else if (adc > scale_temp[1][27] / 100 * tps_rpm.coef) {
@@ -829,15 +884,17 @@ void StartTask03(void *argument)
   /* USER CODE BEGIN StartTask03 */
   uint8_t x = 0;
   uint8_t on_off = 0;
-  tps_rpm.coef = 104;
+  tps_rpm.coef = 100;
   /* Infinite loop */
   for (;;) {
 		HAL_ADC_Start(&hadc1);
 		HAL_ADC_PollForConversion(&hadc1, 100);
+		ADC_RAW_Data[0] = HAL_ADC_GetValue(&hadc1);
 		HAL_ADC_Stop(&hadc1);
 
-		if (x > 220) {
-			tps_rpm.tmp = calc_temp(ADC_SMA_Data[0]);
+		if (x > 40) {
+			ADC_SMA_Data[0] = 500;
+			tps_rpm.tmp = calc_temp((double)ADC_SMA_Data[0]);
 			tps_rpm.procent = tps_rpm.tmp - 67;
 			if (tps_rpm.procent < 1)
 				tps_rpm.procent = 0;
@@ -893,13 +950,13 @@ void StartTask04(void *argument)
 
         HAL_UART_Transmit(
             &huart1, transmitUART,
-            sprintf((char *)transmitUART, "Koef - %d \n", tps_rpm.coef),
+            sprintf((char *)transmitUART, "Koef - %d \n", ADC_RAW_Data[0]),
             0xffff);
         osDelay(1);
 
     HAL_UART_Transmit(
         &huart1, transmitUART,
-        sprintf((char *)transmitUART, "Engine Speed - %d\n ", tps_rpm.rpm),
+        sprintf((char *)transmitUART, "Engine Speed - %d\n ", ADC_SMA_Data[0]),
         0xffff);
     osDelay(1);
     HAL_UART_Transmit(
@@ -925,17 +982,26 @@ void StartTask05(void *argument)
 
 //  double buffer = 0;
   uint16_t Counter_DMA_IT = 0;
-
+uint8_t init = 1;
+uint8_t time = 50;
   /* Infinite loop */
   for (;;) {
-	  ADC_RAW_Data[0] = HAL_ADC_GetValue(&hadc1);
+
+
 		Counter_DMA_IT++;
-		if (Counter_DMA_IT == 50) {
+		if (Counter_DMA_IT == time) {
 			Counter_DMA_IT = 0;
+			init++;
+			if (init < 50) {
+				time = 1;
+			}
+			else {
+				init = 51;
+				time = 50;
+			}
 			ADC_SMA_Data[0] = SMA_FILTER_Get_Value(SMA_Filter_Buffer_1, &ADC_RAW_Data[0]);
-			ADC_SMA_Data[1] = SMA_FILTER_Get_Value(SMA_Filter_Buffer_2, &tps_rpm.count);
 		}
-    osDelay(10);
+    osDelay(1);
   }
   /* USER CODE END StartTask05 */
 }
