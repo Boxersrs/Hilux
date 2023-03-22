@@ -59,8 +59,6 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define OutSpeed_Pin GPIO_PIN_1
-#define OutSpeed_GPIO_Port GPIOA
 #define InSpeed_Pin GPIO_PIN_2
 #define InSpeed_GPIO_Port GPIOA
 #define InSpeed_EXTI_IRQn EXTI2_IRQn

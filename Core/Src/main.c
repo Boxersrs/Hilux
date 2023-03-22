@@ -53,9 +53,8 @@ typedef StaticTask_t osStaticThreadDef_t;
 // Первое значение - температура в градусах+40
 // второе значение - ADC, которое считается по формуле
 double scale_temp[2][28] = {
-//             100   91   84   78
-    {160, 150, 140, 129, 124, 118, 113, 108, 103, 99, 95, 91, 87, 83, 80,  76,  72,  68,  65,  61,  56,  52,  47,  42, 35, 28, 17, 0},
-    {330, 380, 425, 472, 530, 560, 620, 820, 965, 1054, 1142, 1231, 1320, 1409, 1497, 1586, 1675, 1764, 1853, 1941, 2030, 2118, 2207, 2296, 2385, 2473, 2562, 2650}};
+    {160, 150, 140, 134, 133, 132, 131, 130, 129,  128,  126,  124,  122,  121,  118, 110,  105,   95,   90,   85,   80,   75,   70,   65,   53,   28,   17,  0},
+    {200, 250, 265, 295, 310, 325, 330, 325, 331, 362, 377,  400,  415,  419,  470, 615, 1675, 1764, 1853, 1941, 2030, 2118, 2207, 2296, 2385, 2473, 2562, 2650}};
 
 /* USER CODE END PTD */
 
@@ -214,6 +213,7 @@ uint8_t can_send_38A[5] = {0x0C, 0, 0, 0, 0};
 uint8_t can_send_4C1[8] = {0x01, 0, 0x04, 0x04, 0, 0, 0, 0};
 uint8_t can_send_2C4[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 uint8_t rxbuffer[8];
+uint8_t on_off = 0;
 /* USER CODE END 0 */
 
 /**
@@ -535,16 +535,17 @@ static void MX_TIM2_Init(void)
 
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
 
   /* USER CODE BEGIN TIM2_Init 1 */
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 71;
+  htim2.Init.Prescaler = 43;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 64000;
+  htim2.Init.Period = 65000;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
   {
     Error_Handler();
@@ -554,15 +555,28 @@ static void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
+  if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
   {
     Error_Handler();
   }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 65535;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE BEGIN TIM2_Init 2 */
 
   /* USER CODE END TIM2_Init 2 */
+  HAL_TIM_MspPostInit(&htim2);
 
 }
 
@@ -673,20 +687,13 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, OutSpeed_Pin|Fan2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(Fan2_GPIO_Port, Fan2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(OutTacho_GPIO_Port, OutTacho_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(Fan1_GPIO_Port, Fan1_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin : OutSpeed_Pin */
-  GPIO_InitStruct.Pin = OutSpeed_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
-  HAL_GPIO_Init(OutSpeed_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : InSpeed_Pin */
   GPIO_InitStruct.Pin = InSpeed_Pin;
@@ -750,7 +757,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t InSpeed) {
 //  } else
 	  if (InSpeed == InTacho_Pin) {
 	  tps_rpm.count++;
-	  TIM2->CNT = 0;
 	  if (TachoCount < 5)
 	    HAL_GPIO_TogglePin(OutTacho_GPIO_Port, OutTacho_Pin);
 	  if (TachoCount == 6) TachoCount = 0;
@@ -792,58 +798,52 @@ void StartTask02(void *argument)
 
   /* Infinite loop */
   for (;;) {
-	  txHeader.IDE = CAN_ID_STD;
-	  txHeader.RTR = CAN_RTR_DATA;
-	  txHeader.TransmitGlobalTime = DISABLE;
-	  if(!init) {
-		    txHeader.DLC = 8;
-		    txHeader.StdId = 0x2C4;
-		    HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_2C4, &canMailbox);
-		    osDelay(1);
-		    txHeader.DLC = 8;
-		    txHeader.StdId = 0x4C1;
-		    HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_4C1, &canMailbox);
-		    osDelay(1);
-		    txHeader.DLC = 5;
-		    txHeader.StdId = 0x38A;
-		    HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_38A, &canMailbox);
-		    osDelay(1);
+		txHeader.IDE = CAN_ID_STD;
+		txHeader.RTR = CAN_RTR_DATA;
+		txHeader.TransmitGlobalTime = DISABLE;
+		if (!init) {
+			txHeader.DLC = 8;
+			txHeader.StdId = 0x2C4;
+			HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_2C4, &canMailbox);
+			osDelay(1);
+			txHeader.DLC = 8;
+			txHeader.StdId = 0x4C1;
+			HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_4C1, &canMailbox);
+			osDelay(1);
+			txHeader.DLC = 5;
+			txHeader.StdId = 0x38A;
+			HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_38A, &canMailbox);
+			osDelay(1);
 			txHeader.DLC = 5;
 			can_send_38A[0] = 0x08;
 			can_send_38A[1] = 0x04;
 			txHeader.StdId = 0x38A;
 			HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_38A, &canMailbox);
 			osDelay(2);
-		    txHeader.DLC = 8;
-		    txHeader.StdId = 0x2C4;
-		    HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_2C4, &canMailbox);
-		    osDelay(24);
-		    HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_2C4, &canMailbox);
-		    osDelay(24);
-		    HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_2C4, &canMailbox);
-		    osDelay(24);
-		    HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_2C4, &canMailbox);
-		    osDelay(24);
-		    init++;
-	  }
-    tps_rpm.rpm = 100000 / (ADC_SMA_Data[1] / 4);  // Расчет оборотов
-    // send 0x2C4// 20 ms
-    txHeader.DLC = 8;
-    txHeader.StdId = 0x2C4;
-//    can_send_2C4[0] = tps_rpm.rpm / 0xff;
-//    can_send_2C4[1] = tps_rpm.rpm % 0xff;
+			txHeader.DLC = 8;
+			txHeader.StdId = 0x2C4;
+			HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_2C4, &canMailbox);
+			osDelay(24);
+			HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_2C4, &canMailbox);
+			osDelay(24);
+			HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_2C4, &canMailbox);
+			osDelay(24);
+			HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_2C4, &canMailbox);
+			osDelay(24);
+			init++;
+		}
+		txHeader.DLC = 8;
+		txHeader.StdId = 0x2C4;
 		HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_2C4, &canMailbox);
 		osDelay(24);
-		if(tps_rpm.count > 100){
-		can_send_2C4[0] = 0x03;
-		can_send_2C4[1] = 0xc8;
-		tps_rpm.count = 0;
+		if (tps_rpm.count > 100) {
+			can_send_2C4[0] = 0x03;
+			can_send_2C4[1] = 0xc8;
 		} else {
 			can_send_2C4[0] = 0;
 			can_send_2C4[1] = 0;
 		}
-
-  }
+	}
   /* USER CODE END StartTask02 */
 }
 
@@ -852,26 +852,26 @@ void StartTask02(void *argument)
 // ADC read an FAN remote
 
 double calc_temp(double adc) {  // �?нтерполяция температуры
-	double temp = 0;
-    uint8_t y = 0;
-  if (adc < scale_temp[1][0] / 100 * tps_rpm.coef) {
-    temp = scale_temp[0][0];
-  } else if (adc > scale_temp[1][27] / 100 * tps_rpm.coef) {
-    temp = scale_temp[0][27];
-  } else {
-    for (uint8_t i = 0; i < 28; i++) {
-      if (adc >= scale_temp[1][i] / 100 * tps_rpm.coef &&
-          adc <= scale_temp[1][i + 1] / 100 * tps_rpm.coef) {
-        y = i;
-        break;
-      }
-    }
-    temp = scale_temp[0][y] - ((adc - scale_temp[1][y] / 100 * tps_rpm.coef) /
-                               ((scale_temp[1][y + 1] / 100 * tps_rpm.coef -
-                                 scale_temp[1][y] / 100 * tps_rpm.coef) /
-                                (scale_temp[0][y] - scale_temp[0][y + 1])));
-  }
-  return temp;
+	uint8_t size = sizeof(scale_temp[0]) / sizeof(double);
+	double second = adc;
+	double first = 0;
+	uint8_t i = 0;
+
+	/* Поиск первого числа */
+	for (i = 0; i < size; i++) {
+		if (scale_temp[1][i] == second) {
+			first = scale_temp[0][i];
+			break;
+		} else if (scale_temp[1][i] > second) {
+			double x1 = scale_temp[1][i - 1];
+			double x2 = scale_temp[1][i];
+			double y1 = scale_temp[0][i - 1];
+			double y2 = scale_temp[0][i];
+			first = y1 + ((y2 - y1) / (x2 - x1)) * (second - x1);
+			break;
+		}
+	}
+	return first;
 }
 /**
  * @brief Function implementing the myTask03 thread.
@@ -883,52 +883,48 @@ void StartTask03(void *argument)
 {
   /* USER CODE BEGIN StartTask03 */
   uint8_t x = 0;
-  uint8_t on_off = 0;
-  tps_rpm.coef = 100;
   /* Infinite loop */
-  for (;;) {
+	for (;;) {
 		HAL_ADC_Start(&hadc1);
 		HAL_ADC_PollForConversion(&hadc1, 100);
 		ADC_RAW_Data[0] = HAL_ADC_GetValue(&hadc1);
 		HAL_ADC_Stop(&hadc1);
 
 		if (x > 40) {
-			ADC_SMA_Data[0] = 500;
-			tps_rpm.tmp = calc_temp((double)ADC_SMA_Data[0]);
+			tps_rpm.tmp = calc_temp((double) ADC_SMA_Data[0]);
 			tps_rpm.procent = tps_rpm.tmp - 67;
 			if (tps_rpm.procent < 1)
-				tps_rpm.procent = 0;
+				tps_rpm.procent = 2;
 		} else {
 			x++;
-			tps_rpm.procent = 0;
+			tps_rpm.procent = 2;
 		}
+
 		TIM3->CCR3 = 0xffff / 100 * tps_rpm.procent;
+
 		if (tps_rpm.tmp - 40 > 93)
 			on_off = 1; // Включение вентилятора
 		if (tps_rpm.tmp - 40 < 90)
 			on_off = 0;  // Выключение вентилятора
 		if (byte_6_7[0] == 0xFF || byte_6_7[0] == 0xFF)
 			on_off = 1; // Включение вентилятора по команде кондиционера
-		HAL_GPIO_WritePin(Fan1_GPIO_Port, Fan1_Pin, on_off);
-		HAL_GPIO_WritePin(Fan2_GPIO_Port, Fan2_Pin, on_off);
-
-    osDelay(50);
-  }
+		osDelay(50);
+	}
   /* USER CODE END StartTask03 */
 }
 
 /* USER CODE BEGIN Header_StartTask04 */
-void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
-{
-  if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rxHeader, canRx) != HAL_OK)
-  {
-    // Reception Error //
-    Error_Handler();
-  }
-  if ((rxHeader.StdId == 0x380) && (rxHeader.IDE == CAN_ID_STD)) {
-    if(canRx[0] == 0x80) AC = 1;
-    if(canRx[0] == 0) AC = 0;
-  }
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
+	if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rxHeader, canRx) != HAL_OK) {
+		// Reception Error //
+		Error_Handler();
+	}
+	if ((rxHeader.StdId == 0x380) && (rxHeader.IDE == CAN_ID_STD)) {
+		if (canRx[0] == 0x80)
+			AC = 1;
+		if (canRx[0] == 0)
+			AC = 0;
+	}
 }
 /////////////////////////////////////---ReadCAN---/////////////////////////////////
 /**
@@ -942,29 +938,18 @@ void StartTask04(void *argument)
   /* USER CODE BEGIN StartTask04 */
   /* Infinite loop */
   for (;;) {
-        HAL_UART_Transmit(
-            &huart1, transmitUART,
-            sprintf((char *)transmitUART, "Engine Temp - %d \n", tps_rpm.tmp - 40),
-            0xffff);
-        osDelay(1);
+		HAL_UART_Transmit(&huart1, transmitUART,
+				sprintf((char*) transmitUART, "%d\t%d\n",
+						tps_rpm.tmp - 40, ADC_SMA_Data[0]), 0xfff);
 
-        HAL_UART_Transmit(
-            &huart1, transmitUART,
-            sprintf((char *)transmitUART, "Koef - %d \n", ADC_RAW_Data[0]),
-            0xffff);
-        osDelay(1);
-
-    HAL_UART_Transmit(
-        &huart1, transmitUART,
-        sprintf((char *)transmitUART, "Engine Speed - %d\n ", ADC_SMA_Data[0]),
-        0xffff);
-    osDelay(1);
-    HAL_UART_Transmit(
-        &huart1, transmitUART,
-        sprintf((char *)transmitUART, "Count - %d\n ", tps_rpm.count), 0xffff);
-    osDelay(1);
-
-    osDelay(1000);
+		if (AC == 1 || on_off == 1) {
+			HAL_GPIO_WritePin(Fan1_GPIO_Port, Fan1_Pin, SET);
+			TIM2->CCR2 = 47000;
+		} else {
+			HAL_GPIO_WritePin(Fan1_GPIO_Port, Fan1_Pin, RESET);
+			TIM2->CCR2 = 65535;
+		}
+		osDelay(500);
   }
   /* USER CODE END StartTask04 */
 }
@@ -981,27 +966,22 @@ void StartTask05(void *argument)
   /* USER CODE BEGIN StartTask05 */
 
 //  double buffer = 0;
-  uint16_t Counter_DMA_IT = 0;
-uint8_t init = 1;
-uint8_t time = 50;
+//uint8_t init = 1;
+//uint8_t time = 50;
   /* Infinite loop */
   for (;;) {
 
-
-		Counter_DMA_IT++;
-		if (Counter_DMA_IT == time) {
-			Counter_DMA_IT = 0;
-			init++;
-			if (init < 50) {
-				time = 1;
-			}
-			else {
-				init = 51;
-				time = 50;
-			}
+//			init++;
+//			if (init < 50) {
+//				time = 1;
+//			}
+//			else {
+//				init = 51;
+//				time = 50;
+//			}
 			ADC_SMA_Data[0] = SMA_FILTER_Get_Value(SMA_Filter_Buffer_1, &ADC_RAW_Data[0]);
-		}
-    osDelay(1);
+
+    osDelay(30);
   }
   /* USER CODE END StartTask05 */
 }
@@ -1027,7 +1007,7 @@ void StartTask06(void *argument)
 		uint8_t can_send_3B4[7] = { 0, 0x08, 0, tps_rpm.tmp, 0, 0, 0 };
 		txHeader.StdId = 0x3B4;
 		HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_3B4, &canMailbox);
-    osDelay(1024);
+		osDelay(1024);
   }
   /* USER CODE END StartTask06 */
 }
@@ -1051,13 +1031,14 @@ void StartTask07(void *argument)
 		txHeader.TransmitGlobalTime = DISABLE;
 		txHeader.DLC = 5;
 		txHeader.StdId = 0x38A;
-		if (AC == 1)
+		if (AC == 1) {
 			can_send_38A[0] = 0x00;
-		else
+		} else {
 			can_send_38A[0] = 0x08;
+		}
 
 		HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_38A, &canMailbox);
-    osDelay(1152);
+		osDelay(1152);
   }
   /* USER CODE END StartTask07 */
 }
@@ -1082,7 +1063,7 @@ void StartTask08(void *argument)
 		txHeader.DLC = 8;
 		txHeader.StdId = 0x4C1;
 		HAL_CAN_AddTxMessage(&hcan, &txHeader, can_send_4C1, &canMailbox);
-    osDelay(910);
+		osDelay(910);
   }
   /* USER CODE END StartTask08 */
 }
