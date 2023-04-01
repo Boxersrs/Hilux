@@ -966,19 +966,10 @@ void StartTask05(void *argument)
   /* USER CODE BEGIN StartTask05 */
 
 //  double buffer = 0;
-//uint8_t init = 1;
-//uint8_t time = 50;
+
   /* Infinite loop */
   for (;;) {
 
-//			init++;
-//			if (init < 50) {
-//				time = 1;
-//			}
-//			else {
-//				init = 51;
-//				time = 50;
-//			}
 			ADC_SMA_Data[0] = SMA_FILTER_Get_Value(SMA_Filter_Buffer_1, &ADC_RAW_Data[0]);
 
     osDelay(30);
