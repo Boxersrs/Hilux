@@ -44,6 +44,7 @@ uint16_t ADC_SMA_Data[2] = {
 uint16_t ADC_RAW_Data[2] = { 0, };
 uint8_t transmitUART[30];
 uint8_t AC = 0;
+uint8_t debug = 0;
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -53,8 +54,8 @@ typedef StaticTask_t osStaticThreadDef_t;
 // Первое значение - температура в градусах+40
 // второе значение - ADC, которое считается по формуле
 double scale_temp[2][28] = {
-    {160, 150, 140, 134, 133, 132, 131, 130, 129,  128,  126,  124,  122,  121,  118, 110,  105,   95,   90,   85,   80,   75,   70,   65,   53,   28,   17,  0},
-    {200, 250, 265, 295, 310, 325, 330, 325, 331, 362, 377,  400,  415,  419,  470, 615, 1675, 1764, 1853, 1941, 2030, 2118, 2207, 2296, 2385, 2473, 2562, 2650}};
+    {160, 150, 140, 134, 133, 132, 131, 130, 129, 128, 126,  124,  122,  121,  118, 110, 102,  96,   88,   80,   72,   64,   56,   48,   40,   32,   24,    0},
+    {200, 250, 265, 295, 310, 325, 330, 325, 331, 362, 377,  400,  415,  419,  470, 615, 765, 915, 1065, 1215, 1365, 1515, 1665, 1815, 1965, 2115, 2265, 2650}};
 
 /* USER CODE END PTD */
 
@@ -625,7 +626,7 @@ static void MX_TIM3_Init(void)
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 0;
+  sConfigOC.Pulse = 1200;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_ENABLE;
   if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
@@ -893,14 +894,19 @@ void StartTask03(void *argument)
 		if (x > 40) {
 			tps_rpm.tmp = calc_temp((double) ADC_SMA_Data[0]);
 			tps_rpm.procent = tps_rpm.tmp - 67;
-			if (tps_rpm.procent < 1)
-				tps_rpm.procent = 2;
+			if (tps_rpm.procent < 1){
+				TIM3->CCR3 = 0;
+				debug = 1;
+			}
+			else {
+				TIM3->CCR3 = 63488 / 100 * tps_rpm.procent;
+				debug = 0;
+			}
 		} else {
 			x++;
-			tps_rpm.procent = 2;
+			TIM3->CCR3 = 0;
+			debug = 3;
 		}
-
-		TIM3->CCR3 = 0xffff / 100 * tps_rpm.procent;
 
 		if (tps_rpm.tmp - 40 > 93)
 			on_off = 1; // Включение вентилятора
@@ -939,12 +945,12 @@ void StartTask04(void *argument)
   /* Infinite loop */
   for (;;) {
 		HAL_UART_Transmit(&huart1, transmitUART,
-				sprintf((char*) transmitUART, "%d\t%d\n",
-						tps_rpm.tmp - 40, ADC_SMA_Data[0]), 0xfff);
+				sprintf((char*) transmitUART, "%d\t%d\t%d\n",
+						tps_rpm.tmp - 40, ADC_SMA_Data[0], debug), 0xfff);
 
 		if (AC == 1 || on_off == 1) {
 			HAL_GPIO_WritePin(Fan1_GPIO_Port, Fan1_Pin, SET);
-			TIM2->CCR2 = 47000;
+			TIM2->CCR2 = 30000;
 		} else {
 			HAL_GPIO_WritePin(Fan1_GPIO_Port, Fan1_Pin, RESET);
 			TIM2->CCR2 = 65535;
